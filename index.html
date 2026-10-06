@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta name="theme-color" content="#ffffff">
+		<title>Martin, at 50</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+		<style>
+			:root {
+				color-scheme: light;
+				--paper: #ffffff;
+				--ink: #202020;
+				--muted: #777777;
+				--line: #e8e8e8;
+				--tile: #e7e7e7;
+				--sans: "DM Sans", sans-serif;
+				--serif: "Playfair Display", Georgia, serif;
+			}
+
+			* { box-sizing: border-box; }
+
+			body {
+				margin: 0;
+				background: var(--paper);
+				color: var(--ink);
+				font-family: var(--sans);
+				-webkit-font-smoothing: antialiased;
+			}
+
+			button, textarea { font: inherit; }
+
+			.topbar {
+				height: 58px;
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				padding: 0 clamp(18px, 4vw, 38px);
+				border-bottom: 1px solid var(--line);
+			}
+
+			.answer-form {
+				position: relative;
+				display: flex;
+				align-items: center;
+				gap: 6px;
+			}
+
+			.answer-input {
+				width: clamp(86px, 18vw, 150px);
+				height: 34px;
+				padding: 0 10px;
+				border: 1px solid var(--line);
+				border-radius: 2px;
+				outline: none;
+				background: #ffffff;
+				color: var(--ink);
+				font-size: 13px;
+			}
+
+			.answer-input:focus { border-color: #777777; }
+
+			.submit-button {
+				height: 34px;
+				padding: 0 12px;
+				border: 1px solid var(--ink);
+				border-radius: 2px;
+				background: var(--ink);
+				color: #ffffff;
+				cursor: pointer;
+				font-size: 12px;
+			}
+
+			.submit-button:hover { background: #444444; }
+
+			.notes-button {
+				display: inline-flex;
+				align-items: center;
+				gap: 9px;
+				padding: 10px 13px;
+				border: 0;
+				border-radius: 3px;
+				background: transparent;
+				color: var(--ink);
+				cursor: pointer;
+				font-size: 13px;
+				transition: background .2s;
+			}
+
+			.notes-button:hover { background: #f2f2f2; }
+			.notes-button svg { width: 16px; height: 16px; }
+
+			main {
+				width: min(100%, 1040px);
+				height: calc(100svh - 58px);
+				margin: 0 auto;
+				padding: 8px 22px 18px;
+				display: grid;
+				grid-template-rows: auto minmax(0, 1fr);
+				gap: 10px;
+			}
+
+			.intro { margin: 0; text-align: center; }
+
+			h1 {
+				margin: 0;
+				font-family: var(--serif);
+				font-size: 48px;
+				font-weight: 500;
+				line-height: 1.1;
+			}
+
+			.gallery {
+				display: grid;
+				grid-template-columns: repeat(3, minmax(0, 1fr));
+				grid-template-rows: repeat(3, minmax(0, 1fr));
+				gap: 10px;
+				width: min(100%, 980px, calc((100svh - 150px) * 1.1));
+				aspect-ratio: 1.1;
+				align-self: center;
+				justify-self: center;
+			}
+
+			.tile {
+				position: relative;
+				overflow: hidden;
+				perspective: 1000px;
+				border: 1px solid #e1e1e1;
+				border-radius: 0;
+				background: var(--tile);
+			}
+
+			.tile-inner {
+				position: absolute;
+				inset: 0;
+				transform-style: preserve-3d;
+				transition: transform .75s cubic-bezier(.2, .7, .2, 1);
+			}
+
+			.tile.is-flipped .tile-inner { transform: rotateY(180deg); }
+
+			.tile-face {
+				position: absolute;
+				inset: 0;
+				overflow: hidden;
+				backface-visibility: hidden;
+				-webkit-backface-visibility: hidden;
+			}
+
+			.tile-front { background: var(--tile); }
+			.tile-back { transform: rotateY(180deg); }
+
+			.tile-photo {
+				position: absolute;
+				inset: 0;
+				width: 100%;
+				height: 100%;
+				object-fit: cover;
+			}
+
+			.status {
+				position: fixed;
+				bottom: 7px;
+				left: 12px;
+				right: 12px;
+				color: var(--muted);
+				font-size: 11px;
+				text-align: center;
+			}
+
+			.scrim {
+				position: fixed;
+				z-index: 5;
+				inset: 0;
+				background: rgba(24, 31, 27, .28);
+				opacity: 0;
+				pointer-events: none;
+				transition: opacity .25s ease;
+			}
+
+			.scrim.is-open { opacity: 1; pointer-events: auto; }
+
+			.notes-panel {
+				position: fixed;
+				z-index: 6;
+				top: 0;
+				right: 0;
+				bottom: 0;
+				display: flex;
+				width: min(440px, 100%);
+				flex-direction: column;
+				background: #ffffff;
+				box-shadow: -12px 0 40px rgba(27, 34, 29, .12);
+				transform: translateX(102%);
+				transition: transform .32s cubic-bezier(.2, .75, .25, 1);
+			}
+
+			.notes-panel.is-open { transform: translateX(0); }
+
+			.notes-header {
+				display: flex;
+				min-height: 74px;
+				align-items: center;
+				justify-content: space-between;
+				padding: 0 24px;
+				border-bottom: 1px solid var(--line);
+			}
+
+			.notes-heading {
+				margin: 0;
+				font-family: var(--serif);
+				font-size: 24px;
+				font-weight: 500;
+			}
+
+			.close-button {
+				display: grid;
+				width: 34px;
+				height: 34px;
+				place-items: center;
+				border: 0;
+				border-radius: 50%;
+				background: transparent;
+				color: var(--muted);
+				cursor: pointer;
+			}
+
+			.close-button:hover { background: #f2f2f2; color: var(--ink); }
+			.close-button svg { width: 18px; height: 18px; }
+
+			.note-input {
+				width: 100%;
+				min-height: 0;
+				flex: 1;
+				resize: none;
+				padding: 25px 26px;
+				border: 0;
+				outline: none;
+				background: transparent;
+				color: #252a26;
+				font-family: var(--sans);
+				font-size: 15px;
+				line-height: 1.8;
+			}
+
+			.note-input::placeholder { color: #a2a59e; }
+
+			.notes-footer {
+				display: flex;
+				min-height: 45px;
+				align-items: center;
+				justify-content: space-between;
+				padding: 0 25px;
+				border-top: 1px solid var(--line);
+				color: var(--muted);
+				font-size: 11px;
+			}
+
+			.save-state { display: inline-flex; align-items: center; gap: 7px; }
+			.save-dot { width: 6px; height: 6px; border-radius: 50%; background: #a3a79f; }
+			.save-dot.is-saved { background: #333333; }
+
+			@media (max-width: 620px) {
+				.topbar { height: 54px; padding: 0 12px; }
+				main { height: calc(100svh - 54px); padding: 6px 16px 14px; gap: 8px; }
+				h1 { font-size: 38px; }
+				.gallery { width: min(100%, calc((100svh - 140px) * 1.1)); gap: 6px; }
+				.notes-header { min-height: 66px; padding: 0 20px; }
+				.note-input { padding: 21px 20px; }
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+				*, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+				.tile-inner { transition-duration: .75s !important; }
+			}
+		</style>
+	</head>
+	<body>
+		<header class="topbar">
+			<form class="answer-form" id="answer-form">
+				<input class="answer-input" id="answer-input" type="text" placeholder="Answer" aria-label="Image answer" autocomplete="off">
+				<button class="submit-button" type="submit">Submit</button>
+			</form>
+			<button class="notes-button" id="open-notes" type="button" aria-controls="notes-panel" aria-expanded="false">
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3h8l4 4v14H4V3h4Z"/><path d="M8 3v5h8V3M8 13h8M8 17h5"/></svg>
+				<span>Notes</span>
+			</button>
+		</header>
+
+		<main>
+			<section class="intro" aria-labelledby="page-title">
+				<h1 id="page-title">Martin, at 50</h1>
+			</section>
+
+			<section class="gallery" id="gallery" aria-label="Photo gallery"></section>
+			<p class="status" id="connection-status" role="status" aria-live="polite"></p>
+		</main>
+
+		<div class="scrim" id="scrim"></div>
+		<aside class="notes-panel" id="notes-panel" aria-label="Notes" aria-hidden="true">
+			<div class="notes-header">
+				<h2 class="notes-heading">Notes</h2>
+				<button class="close-button" id="close-notes" type="button" aria-label="Close notes">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="m18 6-12 12M6 6l12 12"/></svg>
+				</button>
+			</div>
+			<textarea class="note-input" id="note-input" placeholder="Write something…" aria-label="Notes text"></textarea>
+			<div class="notes-footer">
+				<span>Plain text</span>
+				<span class="save-state"><span class="save-dot" id="save-dot"></span><span id="save-label">Connecting</span></span>
+			</div>
+		</aside>
+
+		<script type="module">
+			import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+			import { getDatabase, onValue, ref, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+			const firebaseConfig = {
+				apiKey: "AIzaSyCITRSkY1K9JsP1ALD2ge_LQ2CEHDnGvlc",
+				authDomain: "martinfyller50.firebaseapp.com",
+				databaseURL: "https://martinfyller50-default-rtdb.europe-west1.firebasedatabase.app",
+				projectId: "martinfyller50",
+				storageBucket: "martinfyller50.firebasestorage.app",
+				messagingSenderId: "117839040642",
+				appId: "1:117839040642:web:dba6a65e8a1e54bffce49b",
+				measurementId: "G-8SXWMX1464"
+			};
+
+			const photoUrls = [
+				"https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=900&q=85",
+				"https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=85",
+				"https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?auto=format&fit=crop&w=900&q=85",
+				"https://images.unsplash.com/photo-1473116763249-2faaef81ccda?auto=format&fit=crop&w=900&q=85",
+				"https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=900&q=85",
+				"https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=900&q=85",
+				"https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=900&q=85",
+				"https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=900&q=85",
+				"https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=900&q=85"
+			];
+			const tileAnswers = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
+
+			const gallery = document.querySelector("#gallery");
+			const status = document.querySelector("#connection-status");
+			const answerForm = document.querySelector("#answer-form");
+			const answerInput = document.querySelector("#answer-input");
+			const noteInput = document.querySelector("#note-input");
+			const saveDot = document.querySelector("#save-dot");
+			const saveLabel = document.querySelector("#save-label");
+			const notesPanel = document.querySelector("#notes-panel");
+			const scrim = document.querySelector("#scrim");
+			const openButton = document.querySelector("#open-notes");
+			const closeButton = document.querySelector("#close-notes");
+			let database;
+			let noteReady = false;
+			let noteWriteQueue = Promise.resolve();
+			let saveTimer;
+
+			for (let index = 0; index < 9; index += 1) {
+				const tile = document.createElement("div");
+				tile.className = "tile";
+				tile.dataset.tile = String(index + 1);
+				tile.setAttribute("aria-label", `Photo ${index + 1}, locked`);
+
+				const image = document.createElement("img");
+				image.className = "tile-photo";
+				image.src = photoUrls[index];
+				image.alt = `Placeholder photo ${index + 1}`;
+				image.loading = "lazy";
+
+				const inner = document.createElement("div");
+				inner.className = "tile-inner";
+				const front = document.createElement("div");
+				front.className = "tile-face tile-front";
+				front.setAttribute("aria-hidden", "true");
+				const back = document.createElement("div");
+				back.className = "tile-face tile-back";
+				back.append(image);
+				inner.append(front, back);
+				tile.append(inner);
+				gallery.append(tile);
+			}
+
+			answerForm.addEventListener("submit", async (event) => {
+				event.preventDefault();
+				const submittedAnswer = answerInput.value.trim();
+				const tileIndex = tileAnswers.indexOf(submittedAnswer);
+
+				if (tileIndex === -1 || !database) return;
+
+				const tileNumber = tileIndex + 1;
+				const tile = gallery.querySelector(`[data-tile="${tileNumber}"]`);
+				if (tile.classList.contains("is-flipped")) return;
+
+				try {
+					await set(ref(database, `tiles/${tileNumber}`), true);
+					answerInput.value = "";
+				} catch (error) {
+					console.error(error);
+				}
+			});
+
+			function setNotesOpen(isOpen) {
+				notesPanel.classList.toggle("is-open", isOpen);
+				notesPanel.setAttribute("aria-hidden", String(!isOpen));
+				scrim.classList.toggle("is-open", isOpen);
+				openButton.setAttribute("aria-expanded", String(isOpen));
+				if (isOpen) noteInput.focus();
+			}
+
+			openButton.addEventListener("click", () => setNotesOpen(true));
+			closeButton.addEventListener("click", () => setNotesOpen(false));
+			scrim.addEventListener("click", () => setNotesOpen(false));
+			document.addEventListener("keydown", (event) => {
+				if (event.key === "Escape") setNotesOpen(false);
+			});
+
+			noteInput.addEventListener("input", () => {
+				if (!database || !noteReady) return;
+				saveDot.classList.remove("is-saved");
+				saveLabel.textContent = "Saving";
+				clearTimeout(saveTimer);
+				saveTimer = setTimeout(() => {
+					const note = noteInput.value;
+					noteWriteQueue = noteWriteQueue
+						.then(() => set(ref(database, "notes"), note))
+						.then(() => {
+							if (noteInput.value === note) {
+								saveDot.classList.add("is-saved");
+								saveLabel.textContent = "Saved";
+							}
+						})
+						.catch(() => {
+							saveLabel.textContent = "Save failed";
+						});
+				}, 180);
+			});
+
+			const configIsSet = Object.values(firebaseConfig).every((value) => !value.startsWith("YOUR_"));
+			if (!configIsSet) {
+				status.textContent = "Connect Firebase to sync notes and unlock photos.";
+				saveLabel.textContent = "Not connected";
+			} else {
+				try {
+					const app = initializeApp(firebaseConfig);
+					database = getDatabase(app);
+					status.textContent = "";
+
+					onValue(ref(database, "notes"), (snapshot) => {
+						const value = snapshot.val();
+						if (!noteReady) {
+							noteInput.value = typeof value === "string" ? value : "";
+							noteReady = true;
+							saveLabel.textContent = "Saved";
+							saveDot.classList.add("is-saved");
+						}
+					}, () => {
+						status.textContent = "Could not connect to Firebase. Check the project configuration and database rules.";
+						saveLabel.textContent = "Offline";
+					});
+
+					onValue(ref(database, "tiles"), (snapshot) => {
+						const tiles = snapshot.val() || {};
+						document.querySelectorAll(".tile").forEach((tile) => {
+							const flipped = tiles[tile.dataset.tile] === true;
+							tile.classList.toggle("is-flipped", flipped);
+							tile.setAttribute("aria-label", `Photo ${tile.dataset.tile}${flipped ? " revealed" : ", locked"}`);
+						});
+					}, () => {
+						status.textContent = "Could not read photo states. Check the database rules.";
+					});
+				} catch (error) {
+					status.textContent = "Firebase setup needs attention. Check the project configuration.";
+					saveLabel.textContent = "Not connected";
+					console.error(error);
+				}
+			}
+		</script>
+	</body>
+</html>

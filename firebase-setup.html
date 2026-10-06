@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta name="theme-color" content="#ffffff">
+		<title>Firebase Setup</title>
+		<style>
+			:root {
+				color-scheme: light;
+				font-family: Arial, sans-serif;
+				color: #202020;
+				background: #ffffff;
+			}
+
+			* { box-sizing: border-box; }
+
+			body {
+				margin: 0;
+				min-height: 100vh;
+				padding: 48px 24px;
+			}
+
+			main { width: min(100%, 620px); margin: 0 auto; }
+
+			h1 {
+				margin: 0 0 12px;
+				font-family: Georgia, serif;
+				font-size: 38px;
+				font-weight: 400;
+			}
+
+			p { color: #666666; line-height: 1.6; }
+
+			button {
+				margin-top: 16px;
+				padding: 12px 16px;
+				border: 1px solid #202020;
+				border-radius: 2px;
+				background: #202020;
+				color: #ffffff;
+				cursor: pointer;
+			}
+
+			button:disabled { cursor: wait; opacity: .6; }
+
+			#status { min-height: 24px; margin-top: 18px; color: #202020; }
+
+			ul {
+				margin: 22px 0 0;
+				padding: 0;
+				list-style: none;
+			}
+
+			li { padding: 9px 0; border-top: 1px solid #e8e8e8; font-family: monospace; }
+
+			@media (max-width: 480px) {
+				body { padding: 32px 18px; }
+				h1 { font-size: 32px; }
+			}
+		</style>
+	</head>
+	<body>
+		<main>
+			<h1>Firebase data setup</h1>
+			<p>This adds the missing <code>notes</code> value and all nine tile values to Realtime Database. Existing notes and tile states are preserved.</p>
+			<button id="initialize" type="button">Add missing values</button>
+			<p id="status" role="status" aria-live="polite">Ready.</p>
+			<ul id="results" aria-label="Firebase values"></ul>
+		</main>
+
+		<script type="module">
+			import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+			import { getDatabase, ref, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+			const firebaseConfig = {
+				apiKey: "AIzaSyCITRSkY1K9JsP1ALD2ge_LQ2CEHDnGvlc",
+				authDomain: "martinfyller50.firebaseapp.com",
+				databaseURL: "https://martinfyller50-default-rtdb.europe-west1.firebasedatabase.app",
+				projectId: "martinfyller50",
+				storageBucket: "martinfyller50.firebasestorage.app",
+				messagingSenderId: "117839040642",
+				appId: "1:117839040642:web:dba6a65e8a1e54bffce49b",
+				measurementId: "G-8SXWMX1464"
+			};
+
+			const database = getDatabase(initializeApp(firebaseConfig));
+			const button = document.querySelector("#initialize");
+			const status = document.querySelector("#status");
+			const resultsList = document.querySelector("#results");
+			const values = [{ path: "notes", initialValue: "" }];
+
+			for (let tile = 1; tile <= 9; tile += 1) {
+				values.push({ path: `tiles/${tile}`, initialValue: false });
+			}
+
+			button.addEventListener("click", async () => {
+				button.disabled = true;
+				status.textContent = "Checking Firebase values…";
+				resultsList.replaceChildren();
+
+				try {
+					const results = await Promise.all(values.map(async ({ path, initialValue }) => {
+						const transaction = await runTransaction(
+							ref(database, path),
+							(currentValue) => currentValue === null ? initialValue : undefined,
+							{ applyLocally: false }
+						);
+						return { path, created: transaction.committed };
+					}));
+
+					const createdCount = results.filter((result) => result.created).length;
+					status.textContent = `${createdCount} value(s) added; existing values preserved.`;
+					for (const result of results) {
+						const item = document.createElement("li");
+						item.textContent = `${result.path}: ${result.created ? "initialized" : "already exists"}`;
+						resultsList.append(item);
+					}
+				} catch (error) {
+					status.textContent = "Setup failed. Check Firebase Realtime Database read/write rules, then try again.";
+					console.error(error);
+				} finally {
+					button.disabled = false;
+				}
+			});
+		</script>
+	</body>
+</html>
