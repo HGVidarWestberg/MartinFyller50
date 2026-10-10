@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crossword</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #fff; --text: #17212b; --muted: #3e4a56;
+  --cell-bg: #f2f4f6; --cell-border: #526170; --amber: #f4c452;
+  --amber-border: #694700; --focus: #005fcc; --line: #d8dde2;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --page: #15191e; --text: #f4f6f8; --muted: #d0d6dc;
+    --cell-bg: #252c34; --cell-border: #aeb8c2; --amber: #f4c452;
+    --amber-border: #ffe08a; --focus: #8fc7ff; --line: #39414a;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--page); color: var(--text);
+  font: 16px/1.5 system-ui, sans-serif;
+}
+main { max-width: 640px; margin: 0 auto; padding: 16px; }
+.topbar {
+  min-height: 54px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 max(16px, calc((100vw - 640px) / 2 + 16px)); border-bottom: 1px solid var(--line);
+}
+.topbar h1 { margin: 0; font-size: 1.8rem; }
+.topbar-actions { display: flex; align-items: center; gap: 6px; }
+.topbar a, .topbar button {
+  padding: 8px 12px; border: 0; border-radius: 4px; background: transparent;
+  color: var(--text); font: inherit; text-decoration: none; cursor: pointer;
+}
+.topbar a:hover, .topbar button:hover { background: var(--cell-bg); }
+.topbar .notes-button {
+  display: inline-flex; align-items: center; gap: 9px; padding: 10px 13px;
+  border-radius: 3px; font-size: 13px; transition: background .2s;
+}
+.topbar .notes-button:hover { background: #f2f2f2; }
+.notes-button svg { width: 16px; height: 16px; }
+.topbar a:focus-visible, .topbar button:focus-visible, .close-button:focus-visible {
+  outline: 3px solid var(--focus); outline-offset: 2px;
+}
+#grid { display: grid; gap: 8px; width: max-content; max-width: 100%; }
+.cross-row {
+  display: grid; grid-template-columns: repeat(11, var(--cell)); gap: 2px;
+  --cell: clamp(26px, 8vw, 44px);
+}
+.cell { position: relative; width: var(--cell); height: var(--cell); }
+.cell input {
+  width: 100%; height: 100%; padding: 0; border: 2px solid var(--cell-border);
+  border-radius: 4px; background: var(--cell-bg); color: var(--text);
+  text-align: center; font: 700 calc(var(--cell) * .55)/1 system-ui, sans-serif;
+  text-transform: uppercase;
+}
+.cell input:disabled { opacity: 1; }
+.cell.key input { border: 3px solid var(--amber-border); background: var(--amber); color: #211800; }
+.badge {
+  position: absolute; z-index: 1; top: 1px; left: 3px; color: var(--muted);
+  font-size: 10px; line-height: 1; pointer-events: none;
+}
+input:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; position: relative; z-index: 2; }
+.cross-row.active .cell:first-child input { border-left-width: 4px; }
+ol { padding-left: 2.3em; margin: 0; }
+li { margin: 0 0 14px; padding: 2px 8px; white-space: pre-line; }
+li.active { border-left: 4px solid var(--focus); font-weight: 700; }
+#sync-status { min-height: 1.5em; margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+.scrim {
+  position: fixed; z-index: 5; inset: 0; background: #0005;
+  opacity: 0; pointer-events: none; transition: opacity .25s ease;
+}
+.scrim.is-open { opacity: 1; pointer-events: auto; }
+.notes-panel {
+  position: fixed; z-index: 6; inset: 0 0 0 auto; display: flex;
+  width: min(440px, 100%); flex-direction: column; background: var(--page);
+  box-shadow: -12px 0 40px #0002; transform: translateX(102%);
+  transition: transform .32s cubic-bezier(.2, .75, .25, 1);
+}
+.notes-panel.is-open { transform: translateX(0); }
+.notes-header {
+  display: flex; min-height: 66px; align-items: center; justify-content: space-between;
+  padding: 0 20px; border-bottom: 1px solid var(--line);
+}
+.notes-heading { margin: 0; font-size: 1.25rem; }
+.close-button {
+  width: 38px; height: 38px; border: 0; border-radius: 50%;
+  background: transparent; color: var(--text); font-size: 1.5rem; cursor: pointer;
+}
+.note-input {
+  width: 100%; min-height: 0; flex: 1; resize: none; padding: 21px 20px;
+  border: 0; outline: none; background: transparent; color: var(--text);
+  font: inherit; line-height: 1.8;
+}
+.notes-footer {
+  display: flex; min-height: 45px; align-items: center; justify-content: space-between;
+  padding: 0 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .scrim, .notes-panel { transition-duration: .01ms; }
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <h1>Crossword</h1>
+  <div class="topbar-actions">
+    <a href="index.html">Home</a>
+    <button class="notes-button" id="open-notes" type="button" aria-controls="notes-panel" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3h8l4 4v14H4V3h4Z"/><path d="M8 3v5h8V3M8 13h8M8 17h5"/></svg>
+      <span>Notes</span>
+    </button>
+  </div>
+</header>
+<main>
+  <div id="grid" role="grid" aria-label="Crossword"></div>
+  <p id="sync-status" role="status" aria-live="polite">Connecting to save progress…</p>
+  <ol id="clues" aria-label="Clues"></ol>
+</main>
+<div class="scrim" id="scrim"></div>
+<aside class="notes-panel" id="notes-panel" aria-label="Notes" aria-hidden="true">
+  <div class="notes-header">
+    <h2 class="notes-heading">Notes</h2>
+    <button class="close-button" id="close-notes" type="button" aria-label="Close notes">×</button>
+  </div>
+  <textarea class="note-input" id="note-input" placeholder="Write something…" aria-label="Notes text"></textarea>
+  <div class="notes-footer">
+    <span>Plain text</span>
+    <span id="notes-save-status" role="status" aria-live="polite">Connecting…</span>
+  </div>
+</aside>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getDatabase, onValue, ref, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCITRSkY1K9JsP1ALD2ge_LQ2CEHDnGvlc",
+  authDomain: "martinfyller50.firebaseapp.com",
+  databaseURL: "https://martinfyller50-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "martinfyller50",
+  storageBucket: "martinfyller50.firebasestorage.app",
+  messagingSenderId: "117839040642",
+  appId: "1:117839040642:web:dba6a65e8a1e54bffce49b",
+  measurementId: "G-8SXWMX1464"
+};
+
+const PUZZLE = {
+  columns: 11,
+  keyColumn: 5,
+  rows: [
+    { n: 1, answer: "KÄRLEK", startCol: 4, keyIndex: 1,
+      clue: "Den växer när du delar den och krymper när du gömmer den.\nDen kan inte köpas, men ändå får du betala med tid och mod.\nDen får hjärtan att slå fortare, trots att den själv inte har något." },
+    { n: 2, answer: "BILD", startCol: 3, keyIndex: 2,
+      clue: "Jag talar utan mun och sjunger utan ton,\njag bor på väggen och i din telefon.\nMan säger att jag väger tusen ord,\nmen tystare finns inget på vår jord.\nVad är jag?" },
+    { n: 3, answer: "PROCESSOR", startCol: 0, keyIndex: 5,
+      clue: "Jag är inte större än ett frimärke, men har miljarder delar på mig. Jag blir varm när jag tänker för hårt, och utan mig är din maskin bara en dyr låda. Vem är jag?" },
+    { n: 4, answer: "KAMERA", startCol: 5, keyIndex: 0,
+      clue: "Vad är det som har ett öga men aldrig kan gråta? Det blinkar utan att ha ögonlock och släpper in ljus i ett mörkt rum där ingen bor. Det den ser kan du spara för alltid." },
+    { n: 5, answer: "FAMILJ", startCol: 4, keyIndex: 1,
+      clue: "Ingen har sökt jobbet och ingen kan bli uppsagd, men alla har en plats vid bordet. Den har egna regler som ingen skrivit ner och traditioner som ingen minns vem som startade. Du föds in i den, och även om du flyttar långt bort följer den med dig." }
+  ]
+};
+const grid = document.querySelector("#grid");
+const clueList = document.querySelector("#clues");
+const syncStatus = document.querySelector("#sync-status");
+const rows = [];
+let database;
+let crosswordReady = false;
+let noteReady = false;
+let crosswordSaveTimer;
+let noteSaveTimer;
+let crosswordWriteQueue = Promise.resolve();
+let noteWriteQueue = Promise.resolve();
+
+PUZZLE.rows.forEach((data, ri) => {
+  const row = document.createElement("div");
+  row.className = "cross-row";
+  row.setAttribute("role", "row");
+  const inputs = [];
+  [...data.answer].forEach((letter, ci) => {
+    const cell = document.createElement("div");
+    cell.className = "cell" + (ci === data.keyIndex ? " key" : "");
+    cell.setAttribute("role", "gridcell");
+    cell.style.gridColumn = String(data.startCol + ci + 1);
+    const input = document.createElement("input");
+    input.type = "text";
+    input.maxLength = 1;
+    input.inputMode = "text";
+    input.autocomplete = "off";
+    input.setAttribute("autocorrect", "off");
+    input.setAttribute("autocapitalize", "characters");
+    input.spellcheck = false;
+    input.enterKeyHint = "next";
+    input.disabled = true;
+    input.setAttribute("aria-label", `Row ${data.n}, letter ${ci + 1} of ${data.answer.length}${ci === data.keyIndex ? ", key letter" : ""}`);
+    input.dataset.row = String(ri);
+    input.dataset.index = String(ci);
+    if (ci === 0) {
+      const badge = document.createElement("span");
+      badge.className = "badge";
+      badge.setAttribute("aria-hidden", "true");
+      badge.textContent = data.n;
+      cell.append(badge);
+    }
+    cell.append(input);
+    row.append(cell);
+    inputs.push(input);
+  });
+  grid.append(row);
+  const li = document.createElement("li");
+  const text = document.createElement("span");
+  text.textContent = data.clue;
+  li.append(text);
+  clueList.append(li);
+  rows.push({ data, row, inputs, li });
+});
+const letterPattern = /^\p{L}$/u;
+function enableCrosswordInputs() {
+  rows.forEach(state => state.inputs.forEach(input => { input.disabled = false; }));
+}
+function focusInput(input) {
+  if (!input) return;
+  input.focus();
+  input.select();
+}
+function focusClue(index) {
+  const state = rows[index];
+  focusInput(state.inputs.find(input => !input.value) || state.inputs[0]);
+}
+rows.forEach((state, ri) => state.inputs.forEach((input, ci) => {
+  input.addEventListener("focus", () => {
+    rows.forEach(item => { item.row.classList.remove("active"); item.li.classList.remove("active"); });
+    state.row.classList.add("active");
+    state.li.classList.add("active");
+    input.select();
+  });
+  input.addEventListener("input", () => {
+    const chars = Array.from(input.value);
+    const last = chars[chars.length - 1] || "";
+    if (!last || !letterPattern.test(last)) {
+      input.value = "";
+      scheduleCrosswordSave();
+      return;
+    }
+    input.value = last.toLocaleUpperCase("sv-SE");
+    scheduleCrosswordSave();
+    const next = state.inputs[ci + 1];
+    if (next) focusInput(next);
+  });
+  input.addEventListener("keydown", event => {
+    if (event.key === "Backspace") {
+      event.preventDefault();
+      if (input.value) { input.value = ""; scheduleCrosswordSave(); }
+      else if (ci > 0) { const prev = state.inputs[ci - 1]; prev.value = ""; scheduleCrosswordSave(); focusInput(prev); }
+      return;
+    }
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      event.preventDefault();
+      const step = event.key === "ArrowLeft" ? -1 : 1;
+      const target = ci + step;
+      if (target >= 0 && target < state.inputs.length) focusInput(state.inputs[target]);
+      return;
+    }
+    if (event.key === "Home" || event.key === "End") {
+      event.preventDefault();
+      focusInput(event.key === "Home" ? state.inputs[0] : state.inputs[state.inputs.length - 1]);
+      return;
+    }
+    if (event.key === "ArrowUp" || event.key === "ArrowDown" || event.key === "Enter") {
+      event.preventDefault();
+      const step = event.key === "ArrowUp" ? -1 : 1;
+      for (let r = event.key === "Enter" ? (ri + 1) % rows.length : ri + step, count = 0; count < rows.length; count++, r = event.key === "Enter" ? (r + 1) % rows.length : r + step) {
+        if (r < 0 || r >= rows.length) break;
+        const target = rows[r];
+        if (event.key === "Enter") { focusInput(target.inputs[0]); break; }
+        const column = state.data.startCol + ci;
+        focusInput(target.inputs.reduce((best, cell) =>
+          Math.abs(Number(cell.dataset.index) + target.data.startCol - column) <
+          Math.abs(Number(best.dataset.index) + target.data.startCol - column) ? cell : best));
+        break;
+      }
+    }
+  });
+  input.addEventListener("paste", event => {
+    event.preventDefault();
+    const chars = Array.from(event.clipboardData.getData("text")).filter(char => letterPattern.test(char)).map(char => char.toLocaleUpperCase("sv-SE"));
+    let at = ci;
+    chars.forEach(char => { if (at < state.inputs.length) state.inputs[at++].value = char; });
+    scheduleCrosswordSave();
+    const next = state.inputs[Math.min(at, state.inputs.length - 1)];
+    if (next) focusInput(next);
+  });
+}));
+rows.forEach((state, i) => state.li.addEventListener("click", () => focusClue(i)));
+
+function crosswordValue() {
+  return Object.fromEntries(rows.map(state => [
+    String(state.data.n),
+    state.inputs.map(input => input.value).join("")
+  ]));
+}
+
+function scheduleCrosswordSave() {
+  if (!database || !crosswordReady) return;
+  clearTimeout(crosswordSaveTimer);
+  syncStatus.textContent = "Saving progress…";
+  crosswordSaveTimer = setTimeout(() => {
+    const savedRows = crosswordValue();
+    crosswordWriteQueue = crosswordWriteQueue
+      .then(() => set(ref(database, "crossword/rows"), savedRows))
+      .then(() => {
+        syncStatus.textContent = "Progress saved.";
+      })
+      .catch(error => {
+        syncStatus.textContent = "Could not save crossword progress.";
+        console.error("Could not save crossword progress.", error);
+      });
+  }, 180);
+}
+
+const notesPanel = document.querySelector("#notes-panel");
+const scrim = document.querySelector("#scrim");
+const openNotes = document.querySelector("#open-notes");
+const closeNotes = document.querySelector("#close-notes");
+const noteInput = document.querySelector("#note-input");
+const noteSaveStatus = document.querySelector("#notes-save-status");
+
+function setNotesOpen(isOpen) {
+  notesPanel.classList.toggle("is-open", isOpen);
+  notesPanel.setAttribute("aria-hidden", String(!isOpen));
+  scrim.classList.toggle("is-open", isOpen);
+  openNotes.setAttribute("aria-expanded", String(isOpen));
+  if (isOpen) noteInput.focus();
+}
+
+openNotes.addEventListener("click", () => setNotesOpen(true));
+closeNotes.addEventListener("click", () => setNotesOpen(false));
+scrim.addEventListener("click", () => setNotesOpen(false));
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape") setNotesOpen(false);
+});
+
+noteInput.addEventListener("input", () => {
+  if (!database || !noteReady) return;
+  noteSaveStatus.textContent = "Saving…";
+  clearTimeout(noteSaveTimer);
+  noteSaveTimer = setTimeout(() => {
+    const note = noteInput.value;
+    noteWriteQueue = noteWriteQueue
+      .then(() => set(ref(database, "notes"), note))
+      .then(() => {
+        if (noteInput.value === note) noteSaveStatus.textContent = "Saved";
+      })
+      .catch(error => {
+        noteSaveStatus.textContent = "Save failed";
+        console.error("Could not save notes.", error);
+      });
+  }, 180);
+});
+
+try {
+  database = getDatabase(initializeApp(firebaseConfig));
+  onValue(ref(database, "crossword/rows"), snapshot => {
+    const savedRows = snapshot.val();
+    if (savedRows !== null && typeof savedRows !== "object") {
+      syncStatus.textContent = "Saved crossword data has an invalid format.";
+      crosswordReady = false;
+      enableCrosswordInputs();
+      return;
+    }
+    rows.forEach(state => {
+      const saved = savedRows?.[String(state.data.n)];
+      const letters = typeof saved === "string" ? Array.from(saved) : [];
+      state.inputs.forEach((input, index) => {
+        input.value = letters[index] && letterPattern.test(letters[index]) ?
+          letters[index].toLocaleUpperCase("sv-SE") : "";
+      });
+    });
+    crosswordReady = true;
+    syncStatus.textContent = "Progress loaded.";
+    enableCrosswordInputs();
+  }, error => {
+    crosswordReady = false;
+    syncStatus.textContent = "Could not load crossword progress. Entries will not be saved.";
+    enableCrosswordInputs();
+    console.error("Could not load crossword progress.", error);
+  });
+
+  onValue(ref(database, "notes"), snapshot => {
+    if (!noteReady) {
+      const note = snapshot.val();
+      if (note !== null && typeof note !== "string") {
+        noteSaveStatus.textContent = "Invalid saved notes";
+        return;
+      }
+      noteInput.value = note || "";
+      noteReady = true;
+      noteSaveStatus.textContent = "Saved";
+    }
+  }, error => {
+    noteReady = false;
+    noteSaveStatus.textContent = "Could not load notes";
+    console.error("Could not load notes.", error);
+  });
+} catch (error) {
+  syncStatus.textContent = "Could not connect to Firebase. Crossword progress will not be saved.";
+  noteSaveStatus.textContent = "Not connected";
+  enableCrosswordInputs();
+  console.error("Firebase initialization failed.", error);
+}
+</script>
+</body>
+</html>

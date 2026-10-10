@@ -43,13 +43,33 @@
 
 			.answer-form {
 				position: relative;
-				display: flex;
+				display: grid;
+				grid-template-columns: auto auto;
 				align-items: center;
-				gap: 6px;
+				gap: 2px 6px;
+			}
+
+			.answer-drag-area {
+				position: relative;
+				width: clamp(86px, 18vw, 150px);
+				height: 34px;
+			}
+
+			.answer-reveal {
+				position: absolute;
+				inset: 0;
+				display: grid;
+				place-items: center;
+				overflow: hidden;
+				color: var(--ink);
+				font-size: 12px;
+				white-space: nowrap;
 			}
 
 			.answer-input {
-				width: clamp(86px, 18vw, 150px);
+				position: absolute;
+				inset: 0;
+				width: 100%;
 				height: 34px;
 				padding: 0 10px;
 				border: 1px solid var(--line);
@@ -58,9 +78,25 @@
 				background: #ffffff;
 				color: var(--ink);
 				font-size: 13px;
+				touch-action: auto;
+				transition: transform .28s cubic-bezier(.2, .75, .25, 1);
 			}
 
 			.answer-input:focus { border-color: #777777; }
+			.answer-input.is-draggable { cursor: grab; touch-action: none; }
+			.answer-input.is-grabbing { cursor: grabbing; }
+			.answer-input.is-draggable.is-text-cursor { cursor: text; }
+			.answer-input.is-dragging { transition: none; }
+
+			.answer-error {
+				grid-column: 1 / -1;
+				margin: 0;
+				color: #c62828;
+				font-size: 11px;
+				line-height: 14px;
+			}
+
+			.answer-error[hidden] { display: none; }
 
 			.submit-button {
 				height: 34px;
@@ -88,6 +124,14 @@
 				font-size: 13px;
 				transition: background .2s;
 			}
+
+			.topbar-actions {
+				display: flex;
+				align-items: center;
+				gap: 4px;
+			}
+
+			.puzzle2-button[hidden] { display: none; }
 
 			.notes-button:hover { background: #f2f2f2; }
 			.notes-button svg { width: 16px; height: 16px; }
@@ -151,6 +195,17 @@
 
 			.tile-front { background: var(--tile); }
 			.tile-back { transform: rotateY(180deg); }
+
+			.tile-clue {
+				position: absolute;
+				inset: 0;
+				display: grid;
+				place-items: center;
+				padding: 8px;
+				color: var(--tile);
+				font-size: clamp(10px, 1.8vw, 16px);
+				text-align: center;
+			}
 
 			.tile-photo {
 				position: absolute;
@@ -280,13 +335,21 @@
 	<body>
 		<header class="topbar">
 			<form class="answer-form" id="answer-form">
-				<input class="answer-input" id="answer-input" type="text" placeholder="Answer" aria-label="Image answer" autocomplete="off">
+				<div class="answer-drag-area">
+					<span class="answer-reveal" aria-hidden="true">Nämen hejsan</span>
+					<input class="answer-input" id="answer-input" type="text" placeholder="Answer" aria-label="Image answer" autocomplete="off">
+				</div>
 				<button class="submit-button" type="submit">Submit</button>
+				<p class="answer-error" id="answer-error" role="status" aria-live="polite" hidden>Wrong answer.</p>
 			</form>
-			<button class="notes-button" id="open-notes" type="button" aria-controls="notes-panel" aria-expanded="false">
-				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3h8l4 4v14H4V3h4Z"/><path d="M8 3v5h8V3M8 13h8M8 17h5"/></svg>
-				<span>Notes</span>
-			</button>
+			<div class="topbar-actions">
+				<a class="notes-button puzzle2-button" id="puzzle2-link" href="puzzle2.html" hidden>Puzzle 2</a>
+				<a class="notes-button puzzle2-button" id="crosswords-link" href="crossword.html" hidden>Puzzle 3</a>
+				<button class="notes-button" id="open-notes" type="button" aria-controls="notes-panel" aria-expanded="false">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3h8l4 4v14H4V3h4Z"/><path d="M8 3v5h8V3M8 13h8M8 17h5"/></svg>
+					<span>Notes</span>
+				</button>
+			</div>
 		</header>
 
 		<main>
@@ -339,12 +402,17 @@
 				"https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=900&q=85",
 				"https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=900&q=85"
 			];
-			const tileAnswers = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
+			const tileAnswers = ["fotograf", "Nämen hejsan", "3", "älska", "5", "Awww, du hitta mig :(", "puzzle2", "8", "9"];
+			const crosswordsTileNumber = tileAnswers.indexOf("fotograf") + 1;
 
 			const gallery = document.querySelector("#gallery");
 			const status = document.querySelector("#connection-status");
 			const answerForm = document.querySelector("#answer-form");
 			const answerInput = document.querySelector("#answer-input");
+			const answerError = document.querySelector("#answer-error");
+			let answerDrag;
+			let answerDragEnabled = false;
+			let answerCursorTimer;
 			const noteInput = document.querySelector("#note-input");
 			const saveDot = document.querySelector("#save-dot");
 			const saveLabel = document.querySelector("#save-label");
@@ -352,6 +420,8 @@
 			const scrim = document.querySelector("#scrim");
 			const openButton = document.querySelector("#open-notes");
 			const closeButton = document.querySelector("#close-notes");
+			const puzzle2Link = document.querySelector("#puzzle2-link");
+			const crosswordsLink = document.querySelector("#crosswords-link");
 			let database;
 			let noteReady = false;
 			let noteWriteQueue = Promise.resolve();
@@ -374,6 +444,12 @@
 				const front = document.createElement("div");
 				front.className = "tile-face tile-front";
 				front.setAttribute("aria-hidden", "true");
+				if (index === 5) {
+					const clue = document.createElement("span");
+					clue.className = "tile-clue";
+					clue.textContent = "Awww, du hitta mig :(";
+					front.append(clue);
+				}
 				const back = document.createElement("div");
 				back.className = "tile-face tile-back";
 				back.append(image);
@@ -387,7 +463,13 @@
 				const submittedAnswer = answerInput.value.trim();
 				const tileIndex = tileAnswers.indexOf(submittedAnswer);
 
-				if (tileIndex === -1 || !database) return;
+				if (tileIndex === -1) {
+					answerError.hidden = !submittedAnswer;
+					return;
+				}
+
+				answerError.hidden = true;
+				if (!database) return;
 
 				const tileNumber = tileIndex + 1;
 				const tile = gallery.querySelector(`[data-tile="${tileNumber}"]`);
@@ -400,6 +482,64 @@
 					console.error(error);
 				}
 			});
+
+			answerInput.addEventListener("input", () => {
+				answerError.hidden = true;
+			});
+
+			function showAnswerDragCursor() {
+				if (!answerDragEnabled) return;
+				clearTimeout(answerCursorTimer);
+				answerInput.classList.remove("is-text-cursor");
+				answerInput.classList.add("is-grabbing");
+				answerCursorTimer = setTimeout(() => {
+					answerInput.classList.remove("is-grabbing");
+					answerInput.classList.toggle("is-text-cursor", answerDragEnabled);
+				}, 50);
+			}
+
+			answerInput.addEventListener("pointerenter", (event) => {
+				if (event.pointerType !== "touch") showAnswerDragCursor();
+			});
+
+			answerInput.addEventListener("pointerdown", (event) => {
+				if (!answerDragEnabled || !event.isPrimary || event.button !== 0) return;
+				answerDrag = {
+					pointerId: event.pointerId,
+					startX: event.clientX,
+					startY: event.clientY,
+					moved: false
+				};
+				answerInput.setPointerCapture(event.pointerId);
+			});
+
+			answerInput.addEventListener("pointermove", (event) => {
+				if (!answerDrag || answerDrag.pointerId !== event.pointerId) return;
+				const deltaX = event.clientX - answerDrag.startX;
+				const deltaY = event.clientY - answerDrag.startY;
+				if (!answerDrag.moved && Math.hypot(deltaX, deltaY) < 6) return;
+
+				answerDrag.moved = true;
+				event.preventDefault();
+				const resistedX = Math.sign(deltaX) * Math.min(Math.abs(deltaX) * .55, 110);
+				const resistedY = Math.sign(deltaY) * Math.min(Math.abs(deltaY) * .55, 90);
+				answerInput.classList.add("is-dragging");
+				answerInput.style.transform = `translate(${resistedX}px, ${resistedY}px)`;
+			});
+
+			function returnAnswerInput() {
+				if (answerDrag && answerDrag.moved) {
+					answerInput.classList.remove("is-dragging");
+					answerInput.style.transform = "translate(0, 0)";
+				}
+				answerDrag = null;
+				clearTimeout(answerCursorTimer);
+				answerInput.classList.remove("is-grabbing");
+				answerInput.classList.toggle("is-text-cursor", answerDragEnabled);
+			}
+
+			answerInput.addEventListener("pointerup", returnAnswerInput);
+			answerInput.addEventListener("pointercancel", returnAnswerInput);
 
 			function setNotesOpen(isOpen) {
 				notesPanel.classList.toggle("is-open", isOpen);
@@ -462,13 +602,28 @@
 
 					onValue(ref(database, "tiles"), (snapshot) => {
 						const tiles = snapshot.val() || {};
+						const answerTileFlipped = tiles["2"] === true;
+						crosswordsLink.hidden = tiles[String(crosswordsTileNumber)] !== true;
+						answerDragEnabled = !answerTileFlipped;
+						answerInput.classList.toggle("is-draggable", answerDragEnabled);
+						if (answerTileFlipped) returnAnswerInput();
+
 						document.querySelectorAll(".tile").forEach((tile) => {
 							const flipped = tiles[tile.dataset.tile] === true;
 							tile.classList.toggle("is-flipped", flipped);
 							tile.setAttribute("aria-label", `Photo ${tile.dataset.tile}${flipped ? " revealed" : ", locked"}`);
 						});
 					}, () => {
+						answerDragEnabled = false;
+						answerInput.classList.remove("is-draggable");
+						returnAnswerInput();
 						status.textContent = "Could not read photo states. Check the database rules.";
+					});
+
+					onValue(ref(database, "puzzle2Visited"), (snapshot) => {
+						puzzle2Link.hidden = snapshot.val() !== true;
+					}, () => {
+						status.textContent = "Could not read puzzle 2 status. Check the database rules.";
 					});
 				} catch (error) {
 					status.textContent = "Firebase setup needs attention. Check the project configuration.";

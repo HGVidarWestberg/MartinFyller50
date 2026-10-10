@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta name="theme-color" content="#ffffff">
+		<title>One Doesn't Belong...</title>
+		<link id="dynamic-favicon" rel="icon">
+		<style>
+			:root {
+				color-scheme: light;
+				font-family: Arial, sans-serif;
+				color: #202020;
+				background: #ffffff;
+			}
+
+			* { box-sizing: border-box; }
+
+			body { margin: 0; }
+
+			main {
+				width: min(100%, 1040px);
+				margin: 0 auto;
+				padding: 24px 22px;
+			}
+
+			.home-button {
+				display: inline-block;
+				padding: 9px 12px;
+				border: 1px solid #e8e8e8;
+				border-radius: 2px;
+				color: #202020;
+				font-size: 13px;
+				text-decoration: none;
+				flex-shrink: 0;
+			}
+
+			.home-button:hover { background: #f2f2f2; }
+
+			.page-header {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 16px;
+				padding-bottom: 12px;
+				border-bottom: 1px solid #e8e8e8;
+			}
+
+			h1 {
+				margin: 0;
+				font-family: Georgia, serif;
+				font-size: 38px;
+				font-weight: 400;
+			}
+
+			.image-grid {
+				display: grid;
+				grid-template-columns: repeat(3, minmax(0, 1fr));
+				gap: 16px;
+				margin-top: 24px;
+			}
+
+			.image-card {
+				display: block;
+				padding: 0;
+				overflow: hidden;
+				border: 1px solid #e8e8e8;
+				border-radius: 2px;
+				background: #f7f7f7;
+				cursor: pointer;
+			}
+
+			.image-card:hover { border-color: #999999; }
+
+			.image-card:focus-visible {
+				outline: 2px solid #202020;
+				outline-offset: 3px;
+			}
+
+			.image-card img {
+				display: block;
+				width: 100%;
+				aspect-ratio: 1;
+				object-fit: cover;
+			}
+
+			#status {
+				min-height: 1.5em;
+				color: #666666;
+				font-size: 13px;
+			}
+
+			@media (max-width: 600px) {
+				main { padding: 18px 14px; }
+				h1 { font-size: 32px; }
+				.image-grid { gap: 8px; }
+			}
+		</style>
+	</head>
+	<body>
+		<main>
+			<header class="page-header">
+				<h1>One Doesn't Belong...</h1>
+				<a class="home-button" href="index.html">Home</a>
+			</header>
+			<div class="image-grid" id="image-grid"></div>
+		</main>
+
+		<script type="module">
+			import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+			import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+			const firebaseConfig = {
+				apiKey: "AIzaSyCITRSkY1K9JsP1ALD2ge_LQ2CEHDnGvlc",
+				authDomain: "martinfyller50.firebaseapp.com",
+				databaseURL: "https://martinfyller50-default-rtdb.europe-west1.firebasedatabase.app",
+				projectId: "martinfyller50",
+				storageBucket: "martinfyller50.firebasestorage.app",
+				messagingSenderId: "117839040642",
+				appId: "1:117839040642:web:dba6a65e8a1e54bffce49b",
+				measurementId: "G-8SXWMX1464"
+			};
+
+			const imageGrid = document.querySelector("#image-grid");
+			const favicon = document.querySelector("#dynamic-favicon");
+			const word = "fotograf";
+			let consecutiveCorrectAnswers = 0;
+
+			const martinImages = [
+				"Screenshot 2026-10-10 154904.png",
+				"Screenshot 2026-10-10 154954.png",
+				"Screenshot 2026-10-10 155015.png",
+				"Screenshot 2026-10-10 155035.png",
+				"Screenshot 2026-10-10 155058.png",
+				"Screenshot 2026-10-10 155110.png",
+				"Screenshot 2026-10-10 155120.png",
+				"Screenshot 2026-10-10 155133.png",
+				"Screenshot 2026-10-10 155142.png",
+				"Screenshot 2026-10-10 155153.png",
+				"Screenshot 2026-10-10 155201.png",
+				"Screenshot 2026-10-10 155217.png",
+				"Screenshot 2026-10-10 155229.png",
+				"Screenshot 2026-10-10 155239.png",
+				"Screenshot 2026-10-10 155300.png",
+				"Screenshot 2026-10-10 155310.png",
+				"Screenshot 2026-10-10 155325.png",
+				"Screenshot 2026-10-10 155338.png"
+			];
+
+			const notMartinImages = [
+				"Screenshot 2026-10-10 155642.png",
+				"Screenshot 2026-10-10 155742.png",
+				"Screenshot 2026-10-10 155814.png",
+				"Screenshot 2026-10-10 155930.png",
+				"Screenshot 2026-10-10 160015.png",
+				"Screenshot 2026-10-10 160059.png"
+			];
+
+			function pickRandom(images) {
+				return images[Math.floor(Math.random() * images.length)];
+			}
+
+			function shuffle(images) {
+				for (let index = images.length - 1; index > 0; index -= 1) {
+					const swapIndex = Math.floor(Math.random() * (index + 1));
+					[images[index], images[swapIndex]] = [images[swapIndex], images[index]];
+				}
+				return images;
+			}
+
+			function setFaviconLetter(letter) {
+				const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="white"/><text x="50%" y="52%" dominant-baseline="middle" text-anchor="middle" font-family="Georgia,serif" font-size="48" fill="#202020">${letter}</text></svg>`;
+				favicon.href = `data:image/svg+xml,${encodeURIComponent(svg)}`;
+			}
+
+			function renderImages() {
+				const ownImages = shuffle([...martinImages]);
+				const cards = shuffle([
+					{ image: pickRandom(notMartinImages), isNotMartin: true },
+					{ image: ownImages[0], isNotMartin: false },
+					{ image: ownImages[1], isNotMartin: false }
+				]);
+
+				imageGrid.replaceChildren(...cards.map(({ image, isNotMartin }, index) => {
+					const button = document.createElement("button");
+					button.type = "button";
+					button.className = "image-card";
+					button.setAttribute("aria-label", `Image ${index + 1}`);
+					button.dataset.notMartin = String(isNotMartin);
+
+					const img = document.createElement("img");
+					img.src = `${isNotMartin ? "NotMartinsImages" : "MartinsOwnImages"}/${encodeURIComponent(image)}`;
+					img.alt = `Image ${index + 1}`;
+					button.append(img);
+					button.addEventListener("click", () => {
+						if (button.dataset.notMartin === "true") {
+							setFaviconLetter(word[consecutiveCorrectAnswers % word.length]);
+							consecutiveCorrectAnswers += 1;
+						} else {
+							consecutiveCorrectAnswers = 0;
+							favicon.removeAttribute("href");
+						}
+						renderImages();
+					});
+					return button;
+				}));
+			}
+
+			renderImages();
+
+			try {
+				const database = getDatabase(initializeApp(firebaseConfig));
+				await set(ref(database, "puzzle2Visited"), true);
+			} catch (error) {
+				status.textContent = "Could not save puzzle 2 visit. Check the Firebase configuration and database rules.";
+				console.error(error);
+			}
+		</script>
+	</body>
+</html>
