@@ -60,7 +60,8 @@ The app assumes these paths are used consistently. Do not rename them unless the
 
 ## Puzzle 2 image folders
 - `image-list.json` supplies the image filenames used by `puzzle2.html`.
-- `.github/workflows/update-image-list.yml` regenerates that list whenever files are pushed to `MartinsOwnImages/` or `NotMartinsImages/`, so new images are included without editing the page.
+- `image-list.js` provides the same generated list for direct `file://` use, where browsers block fetching JSON files.
+- `.github/workflows/update-image-list.yml` regenerates both lists whenever files are pushed to `MartinsOwnImages/` or `NotMartinsImages/`, so new images are included without editing the page.
 - Supported image extensions are AVIF, GIF, JPEG, PNG, and WebP.
 
 ## Relevant references

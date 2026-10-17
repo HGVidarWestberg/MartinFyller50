@@ -20,3 +20,4 @@ if (imageList.martinImages.length < 2 || imageList.notMartinImages.length === 0)
 }
 
 await writeFile("image-list.json", `${JSON.stringify(imageList, null, 2)}\n`);
+await writeFile("image-list.js", `window.puzzleImageList = ${JSON.stringify(imageList)};\n`);

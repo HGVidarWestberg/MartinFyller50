@@ -5,7 +5,7 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<meta name="theme-color" content="#ffffff">
 		<title>One Doesn't Belong...</title>
-		<link id="dynamic-favicon" rel="icon">
+		<link id="dynamic-favicon" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3C/svg%3E">
 		<style>
 			:root {
 				color-scheme: light;
@@ -254,6 +254,7 @@
 			</div>
 		</aside>
 
+		<script src="image-list.js"></script>
 		<script type="module">
 			import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 			import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
@@ -271,6 +272,7 @@
 
 			const imageGrid = document.querySelector("#image-grid");
 			const favicon = document.querySelector("#dynamic-favicon");
+			const emptyFavicon = favicon.href;
 			const notesStatus = document.querySelector("#notes-status");
 			const word = "fotograf";
 			let martinImages = [];
@@ -294,15 +296,27 @@
 				favicon.href = `data:image/svg+xml,${encodeURIComponent(svg)}`;
 			}
 
+			function waitForFaviconUpdate() {
+				return new Promise((resolve) => {
+					requestAnimationFrame(() => requestAnimationFrame(resolve));
+				});
+			}
+
 			function renderImages() {
+				notesStatus.textContent = "Loading images...";
+				imageGrid.replaceChildren();
 				const ownImages = shuffle([...martinImages]);
 				const cards = shuffle([
 					{ image: pickRandom(notMartinImages), isNotMartin: true },
 					{ image: ownImages[0], isNotMartin: false },
 					{ image: ownImages[1], isNotMartin: false }
 				]);
-
-				imageGrid.replaceChildren(...cards.map(({ image, isNotMartin }, index) => {
+				const imageSources = cards.map(({ image, isNotMartin }) =>
+					`${isNotMartin ? "NotMartinsImages" : "MartinsOwnImages"}/${encodeURIComponent(image)}`
+				);
+				let imagesLoaded = 0;
+				let imageLoadFailed = false;
+				const imageButtons = cards.map(({ isNotMartin }, index) => {
 					const button = document.createElement("button");
 					button.type = "button";
 					button.className = "image-card";
@@ -310,28 +324,51 @@
 					button.dataset.notMartin = String(isNotMartin);
 
 					const img = document.createElement("img");
-					img.src = `${isNotMartin ? "NotMartinsImages" : "MartinsOwnImages"}/${encodeURIComponent(image)}`;
+					img.src = imageSources[index];
 					img.alt = `Image ${index + 1}`;
+					img.addEventListener("load", () => {
+						imagesLoaded += 1;
+						if (imagesLoaded === cards.length && !imageLoadFailed) {
+							notesStatus.textContent = "";
+						}
+					}, { once: true });
+					img.addEventListener("error", () => {
+						imageLoadFailed = true;
+						notesStatus.textContent = `Could not load image file: ${imageSources[index]}`;
+						console.error(`Could not load puzzle image: ${imageSources[index]}`);
+					}, { once: true });
 					button.append(img);
-					button.addEventListener("click", () => {
+					button.addEventListener("click", async () => {
+						imageGrid.querySelectorAll("button").forEach((imageButton) => {
+							imageButton.disabled = true;
+						});
 						if (button.dataset.notMartin === "true") {
 							setFaviconLetter(word[consecutiveCorrectAnswers % word.length]);
 							consecutiveCorrectAnswers += 1;
 						} else {
 							consecutiveCorrectAnswers = 0;
-							favicon.removeAttribute("href");
+							favicon.href = emptyFavicon;
 						}
+						await waitForFaviconUpdate();
 						renderImages();
 					});
 					return button;
-				}));
+				});
+				imageGrid.replaceChildren(...imageButtons);
 			}
 
 			async function loadImages() {
+				notesStatus.textContent = "Loading images...";
 				try {
-					const response = await fetch("image-list.json");
-					if (!response.ok) throw new Error(`Could not load image list: ${response.status}`);
-					const imageList = await response.json();
+					let imageList;
+					if (window.location.protocol === "file:") {
+						imageList = window.puzzleImageList;
+						if (!imageList) throw new Error("Could not load the local puzzle image list");
+					} else {
+						const response = await fetch("image-list.json");
+						if (!response.ok) throw new Error(`Could not load image list: ${response.status}`);
+						imageList = await response.json();
+					}
 					if (!Array.isArray(imageList.martinImages) || !Array.isArray(imageList.notMartinImages)) {
 						throw new Error("Image list is missing one or more image folders");
 					}
@@ -342,7 +379,7 @@
 					notMartinImages = imageList.notMartinImages;
 					renderImages();
 				} catch (error) {
-					notesStatus.textContent = "Could not load puzzle images. Check your connection and try again.";
+					notesStatus.textContent = "Could not load image-list.json. Check that the puzzle image list is available.";
 					console.error(error);
 				}
 			}
