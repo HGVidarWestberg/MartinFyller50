@@ -19,6 +19,7 @@ This repository contains a static birthday/50th-anniversary web experience calle
 ## Current pages
 - `index.html` — home page, photo gallery, answer form, notes panel, Firebase sync
 - `puzzle2.html` — image-selection puzzle that marks `puzzle2Visited` as true when visited
+- `lorem.html` — text puzzle revealed after the eight outer gallery tiles are unlocked
 - `crossword.html` — crossword puzzle with per-row entries saved at `crossword/rows/<row>`
 - `firebase-setup.html` — admin/reset helper that clears gameplay state while preserving `notes`
 - `PROJECT.md` — repo reference for stack, conventions, and state model
@@ -36,6 +37,7 @@ The app assumes these paths are used consistently. Do not rename them unless the
 - The gallery answers live in `tileAnswers` inside `index.html` and map to tile numbers using 1-based Firebase paths.
 - The array is zero-based, while the database tile keys are one-based: array index `n` corresponds to `tiles/<n + 1>`.
 - When changing a gallery answer or tile unlock mapping, verify the position, tile number, and Firebase path all remain consistent.
+- The middle gallery tile is tile 5 and its answer is `eureka`. The link to `lorem.html` appears when tiles 1–4 and 6–9 are unlocked.
 - `puzzle2.html` is a direct root-level page and should stay reachable at `/puzzle2.html` in a static host.
 - `crossword.html` complements the gallery and is unlocked after the relevant tile state is set in Firebase.
 - `firebase-setup.html` resets progress for the gallery, Puzzle 2, and crossword while preserving notes and unrelated data.
