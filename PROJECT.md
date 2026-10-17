@@ -28,6 +28,9 @@ This repository contains a static birthday/50th-anniversary web experience calle
 The app uses a shared Firebase Realtime Database with the following keys:
 - `notes` — user text notes
 - `tiles/<tileNumber>` — boolean unlock state for each gallery tile, numbered from 1 to 9
+- `tiles/1` — when true, Puzzle 2 displays the message unlocked by the `fotograf` answer
+- `tiles/4` — when true, the crossword page displays the message unlocked by the `älska` answer
+- `tileClues/8` — boolean state for whether tile 8's clue is showing
 - `puzzle2Visited` — boolean that reveals the Puzzle 2 link when true
 - `crossword/rows/<rowNumber>` — string values storing crossword progress
 
@@ -36,6 +39,8 @@ The app assumes these paths are used consistently. Do not rename them unless the
 ## Game logic and puzzle conventions
 - The gallery answers live in `tileAnswers` inside `index.html` and map to tile numbers using 1-based Firebase paths.
 - The array is zero-based, while the database tile keys are one-based: array index `n` corresponds to `tiles/<n + 1>`.
+- After tile 6 is unlocked, mouse-selecting the page heading changes it to "Martin Fyller 50" for two seconds, then restores "Martin, at 50".
+- Tile 8 starts as a blank tile; double-clicking shows its text clue, and submitting that clue solves the tile, reveals its image, and hides the clue.
 - When changing a gallery answer or tile unlock mapping, verify the position, tile number, and Firebase path all remain consistent.
 - The middle gallery tile is tile 5 and its answer is `eureka`. The link to `lorem.html` appears when tiles 1–4 and 6–9 are unlocked.
 - `puzzle2.html` is a direct root-level page and should stay reachable at `/puzzle2.html` in a static host.

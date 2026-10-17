@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="sv">
 	<head>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1">
@@ -196,6 +196,21 @@
 			.tile-front { background: var(--tile); }
 			.tile-back { transform: rotateY(180deg); }
 
+			.tile-clue-label {
+				position: absolute;
+				inset: 0;
+				display: grid;
+				place-items: center;
+				padding: 8px;
+				background: #d5d5d5;
+				color: var(--ink);
+				font-size: clamp(10px, 1.8vw, 16px);
+				text-align: center;
+				visibility: hidden;
+			}
+
+			.tile.is-clue .tile-clue-label { visibility: visible; }
+
 			.tile-clue {
 				position: absolute;
 				inset: 0;
@@ -337,18 +352,18 @@
 			<form class="answer-form" id="answer-form">
 				<div class="answer-drag-area">
 					<span class="answer-reveal" aria-hidden="true">Nämen hejsan</span>
-					<input class="answer-input" id="answer-input" type="text" placeholder="Answer" aria-label="Image answer" autocomplete="off">
+					<input class="answer-input" id="answer-input" type="text" placeholder="Svar" aria-label="Svar på bild" autocomplete="off">
 				</div>
-				<button class="submit-button" type="submit">Submit</button>
-				<p class="answer-error" id="answer-error" role="status" aria-live="polite" hidden>Wrong answer.</p>
+				<button class="submit-button" type="submit">Skicka</button>
+				<p class="answer-error" id="answer-error" role="status" aria-live="polite" hidden>Fel svar.</p>
 			</form>
 			<div class="topbar-actions">
-				<a class="notes-button puzzle2-button" id="puzzle2-link" href="puzzle2.html" hidden>Puzzle 2</a>
-				<a class="notes-button puzzle2-button" id="crosswords-link" href="crossword.html" hidden>Puzzle 3</a>
-				<a class="notes-button puzzle2-button" id="lorem-link" href="lorem.html" hidden>Finale</a>
+				<a class="notes-button puzzle2-button" id="puzzle2-link" href="puzzle2.html" hidden>Pussel 2</a>
+				<a class="notes-button puzzle2-button" id="crosswords-link" href="crossword.html" hidden>Pussel 3</a>
+				<a class="notes-button puzzle2-button" id="lorem-link" href="lorem.html" hidden>Finalen</a>
 				<button class="notes-button" id="open-notes" type="button" aria-controls="notes-panel" aria-expanded="false">
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3h8l4 4v14H4V3h4Z"/><path d="M8 3v5h8V3M8 13h8M8 17h5"/></svg>
-					<span>Notes</span>
+					<span>Anteckningar</span>
 				</button>
 			</div>
 		</header>
@@ -358,28 +373,28 @@
 				<h1 id="page-title">Martin, at 50</h1>
 			</section>
 
-			<section class="gallery" id="gallery" aria-label="Photo gallery"></section>
+			<section class="gallery" id="gallery" aria-label="Fotogalleri"></section>
 			<p class="status" id="connection-status" role="status" aria-live="polite"></p>
 		</main>
 
 		<div class="scrim" id="scrim"></div>
-		<aside class="notes-panel" id="notes-panel" aria-label="Notes" aria-hidden="true">
+		<aside class="notes-panel" id="notes-panel" aria-label="Anteckningar" aria-hidden="true">
 			<div class="notes-header">
-				<h2 class="notes-heading">Notes</h2>
-				<button class="close-button" id="close-notes" type="button" aria-label="Close notes">
+				<h2 class="notes-heading">Anteckningar</h2>
+				<button class="close-button" id="close-notes" type="button" aria-label="Stäng anteckningar">
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="m18 6-12 12M6 6l12 12"/></svg>
 				</button>
 			</div>
-			<textarea class="note-input" id="note-input" placeholder="Write something…" aria-label="Notes text"></textarea>
+			<textarea class="note-input" id="note-input" placeholder="Skriv något…" aria-label="Anteckningstext"></textarea>
 			<div class="notes-footer">
-				<span>Plain text</span>
-				<span class="save-state"><span class="save-dot" id="save-dot"></span><span id="save-label">Connecting</span></span>
+				<span>Ren text</span>
+				<span class="save-state"><span class="save-dot" id="save-dot"></span><span id="save-label">Ansluter</span></span>
 			</div>
 		</aside>
 
 		<script type="module">
 			import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-			import { getDatabase, onValue, ref, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+			import { getDatabase, onValue, ref, set, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 			const firebaseConfig = {
 				apiKey: "AIzaSyCITRSkY1K9JsP1ALD2ge_LQ2CEHDnGvlc",
@@ -403,11 +418,12 @@
 				"https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=900&q=85",
 				"https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=900&q=85"
 			];
-			const tileAnswers = ["fotograf", "Nämen hejsan", "3", "älska", "eureka", "Awww, du hitta mig :(", "puzzle2", "8", "9"];
+			const tileAnswers = ["fotograf", "Nämen hejsan", "3", "älska", "eureka", "Awww, du hitta mig :(", "puzzle2", "svårgissat ord", "Martin fyller 50"];
 			const crosswordsTileNumber = tileAnswers.indexOf("fotograf") + 1;
 			const outerTileNumbers = [1, 2, 3, 4, 6, 7, 8, 9];
 
 			const gallery = document.querySelector("#gallery");
+			const pageTitle = document.querySelector("#page-title");
 			const status = document.querySelector("#connection-status");
 			const answerForm = document.querySelector("#answer-form");
 			const answerInput = document.querySelector("#answer-input");
@@ -426,20 +442,68 @@
 			const crosswordsLink = document.querySelector("#crosswords-link");
 			const loremLink = document.querySelector("#lorem-link");
 			let database;
+			let tileStates = {};
+			let tile8ClueShown = false;
+			let titleTileUnlocked = false;
+			let titleSelectionStarted = false;
+			let titleRestoreTimer;
 			let noteReady = false;
 			let noteWriteQueue = Promise.resolve();
 			let saveTimer;
+
+			function hasTitleSelection() {
+				const selection = window.getSelection();
+				if (!selection || selection.isCollapsed || selection.rangeCount === 0 || !selection.toString().trim()) return false;
+				return selection.getRangeAt(0).intersectsNode(pageTitle);
+			}
+
+			function showMarkedTitle() {
+				clearTimeout(titleRestoreTimer);
+				pageTitle.textContent = "Martin Fyller 50";
+				titleRestoreTimer = setTimeout(() => {
+					pageTitle.textContent = "Martin, at 50";
+				}, 2000);
+			}
+
+			function renderTileStates() {
+				document.querySelectorAll(".tile").forEach((tile) => {
+					const tileState = tileStates[tile.dataset.tile];
+					const solved = tileState === true;
+					const clueShown = tile.dataset.tile === "8" && !solved
+						&& (tile8ClueShown || tileState === "clue");
+					const flipped = solved;
+					tile.classList.toggle("is-clue", clueShown);
+					tile.classList.toggle("is-flipped", flipped);
+					const description = clueShown
+						? ", ledtråd visad: svårgissat ord"
+						: flipped ? " visat" : ", låst";
+					tile.setAttribute("aria-label", `Foto ${tile.dataset.tile}${description}`);
+				});
+			}
+
+			document.addEventListener("mousedown", (event) => {
+				titleSelectionStarted = pageTitle.contains(event.target);
+			});
+
+			document.addEventListener("mouseup", () => {
+				const shouldCheckTitleSelection = titleSelectionStarted && titleTileUnlocked;
+				titleSelectionStarted = false;
+				if (!shouldCheckTitleSelection) return;
+				requestAnimationFrame(() => {
+					if (titleTileUnlocked && hasTitleSelection()) showMarkedTitle();
+				});
+			});
 
 			for (let index = 0; index < 9; index += 1) {
 				const tile = document.createElement("div");
 				tile.className = "tile";
 				tile.dataset.tile = String(index + 1);
-				tile.setAttribute("aria-label", `Photo ${index + 1}, locked`);
+				tile.setAttribute("aria-label", `Foto ${index + 1}, låst`);
 
 				const image = document.createElement("img");
 				image.className = "tile-photo";
 				image.src = photoUrls[index];
-				image.alt = `Placeholder photo ${index + 1}`;
+				image.alt = `Foto ${index + 1}`;
 				image.loading = "lazy";
 
 				const inner = document.createElement("div");
@@ -453,18 +517,38 @@
 					clue.textContent = "Awww, du hitta mig :(";
 					front.append(clue);
 				}
+				if (index === 7) {
+					const clueLabel = document.createElement("span");
+					clueLabel.className = "tile-clue-label";
+					clueLabel.textContent = "svårgissat ord";
+					front.append(clueLabel);
+				}
 				const back = document.createElement("div");
 				back.className = "tile-face tile-back";
 				back.append(image);
 				inner.append(front, back);
 				tile.append(inner);
 				gallery.append(tile);
+
+				if (index === 7) {
+					tile.addEventListener("dblclick", async () => {
+						if (!database || tile.classList.contains("is-flipped")) return;
+						try {
+							await set(ref(database, "tileClues/8"), true);
+						} catch (error) {
+							console.error(error);
+							status.textContent = "Det gick inte att visa ledtråden. Kontrollera anslutningen och försök igen.";
+						}
+					});
+				}
 			}
+
+			const normalizeAnswer = (answer = "") => answer.trim().toLowerCase().replace(/!+$/, "");
 
 			answerForm.addEventListener("submit", async (event) => {
 				event.preventDefault();
-				const submittedAnswer = answerInput.value.trim();
-				const tileIndex = tileAnswers.indexOf(submittedAnswer);
+				const submittedAnswer = normalizeAnswer(answerInput.value);
+				const tileIndex = tileAnswers.findIndex((answer) => normalizeAnswer(answer) === submittedAnswer);
 
 				if (tileIndex === -1) {
 					answerError.hidden = !submittedAnswer;
@@ -476,6 +560,24 @@
 
 				const tileNumber = tileIndex + 1;
 				const tile = gallery.querySelector(`[data-tile="${tileNumber}"]`);
+				if (tileNumber === 8) {
+					if (!tile.classList.contains("is-clue")) {
+						answerError.hidden = false;
+						return;
+					}
+					try {
+						await update(ref(database), {
+							"tiles/8": true,
+							"tileClues/8": false
+						});
+						answerInput.value = "";
+					} catch (error) {
+						console.error(error);
+						answerError.textContent = "Det gick inte att visa bilden. Försök igen.";
+						answerError.hidden = false;
+					}
+					return;
+				}
 				if (tile.classList.contains("is-flipped")) return;
 
 				try {
@@ -487,6 +589,7 @@
 			});
 
 			answerInput.addEventListener("input", () => {
+				answerError.textContent = "Fel svar.";
 				answerError.hidden = true;
 			});
 
@@ -562,7 +665,7 @@
 			noteInput.addEventListener("input", () => {
 				if (!database || !noteReady) return;
 				saveDot.classList.remove("is-saved");
-				saveLabel.textContent = "Saving";
+				saveLabel.textContent = "Sparar";
 				clearTimeout(saveTimer);
 				saveTimer = setTimeout(() => {
 					const note = noteInput.value;
@@ -571,19 +674,19 @@
 						.then(() => {
 							if (noteInput.value === note) {
 								saveDot.classList.add("is-saved");
-								saveLabel.textContent = "Saved";
+								saveLabel.textContent = "Sparat";
 							}
 						})
 						.catch(() => {
-							saveLabel.textContent = "Save failed";
+							saveLabel.textContent = "Det gick inte att spara";
 						});
 				}, 180);
 			});
 
 			const configIsSet = Object.values(firebaseConfig).every((value) => !value.startsWith("YOUR_"));
 			if (!configIsSet) {
-				status.textContent = "Connect Firebase to sync notes and unlock photos.";
-				saveLabel.textContent = "Not connected";
+				status.textContent = "Anslut till Firebase för att synkronisera anteckningar och låsa upp foton.";
+				saveLabel.textContent = "Inte ansluten";
 			} else {
 				try {
 					const app = initializeApp(firebaseConfig);
@@ -595,43 +698,51 @@
 						if (!noteReady) {
 							noteInput.value = typeof value === "string" ? value : "";
 							noteReady = true;
-							saveLabel.textContent = "Saved";
+							saveLabel.textContent = "Sparat";
 							saveDot.classList.add("is-saved");
 						}
 					}, () => {
-						status.textContent = "Could not connect to Firebase. Check the project configuration and database rules.";
-						saveLabel.textContent = "Offline";
+						status.textContent = "Det gick inte att ansluta till Firebase. Kontrollera projektinställningarna och databasreglerna.";
+						saveLabel.textContent = "Frånkopplad";
 					});
 
 					onValue(ref(database, "tiles"), (snapshot) => {
-						const tiles = snapshot.val() || {};
-						const answerTileFlipped = tiles["2"] === true;
-						crosswordsLink.hidden = tiles[String(crosswordsTileNumber)] !== true;
-						loremLink.hidden = !outerTileNumbers.every((tileNumber) => tiles[String(tileNumber)] === true);
+						tileStates = snapshot.val() || {};
+						const answerTileFlipped = tileStates["2"] === true;
+						titleTileUnlocked = tileStates["6"] === true;
+						if (!titleTileUnlocked) {
+							clearTimeout(titleRestoreTimer);
+							pageTitle.textContent = "Martin, at 50";
+						}
+						crosswordsLink.hidden = tileStates[String(crosswordsTileNumber)] !== true;
+						loremLink.hidden = !outerTileNumbers.every((tileNumber) => tileStates[String(tileNumber)] === true);
 						answerDragEnabled = !answerTileFlipped;
 						answerInput.classList.toggle("is-draggable", answerDragEnabled);
 						if (answerTileFlipped) returnAnswerInput();
 
-						document.querySelectorAll(".tile").forEach((tile) => {
-							const flipped = tiles[tile.dataset.tile] === true;
-							tile.classList.toggle("is-flipped", flipped);
-							tile.setAttribute("aria-label", `Photo ${tile.dataset.tile}${flipped ? " revealed" : ", locked"}`);
-						});
+						renderTileStates();
 					}, () => {
 						answerDragEnabled = false;
 						answerInput.classList.remove("is-draggable");
 						returnAnswerInput();
-						status.textContent = "Could not read photo states. Check the database rules.";
+						status.textContent = "Det gick inte att läsa fotonas status. Kontrollera databasreglerna.";
+					});
+
+					onValue(ref(database, "tileClues/8"), (snapshot) => {
+						tile8ClueShown = snapshot.val() === true;
+						renderTileStates();
+					}, () => {
+						status.textContent = "Det gick inte att läsa ledtrådens status. Kontrollera databasreglerna.";
 					});
 
 					onValue(ref(database, "puzzle2Visited"), (snapshot) => {
 						puzzle2Link.hidden = snapshot.val() !== true;
 					}, () => {
-						status.textContent = "Could not read puzzle 2 status. Check the database rules.";
+						status.textContent = "Det gick inte att läsa status för pussel 2. Kontrollera databasreglerna.";
 					});
 				} catch (error) {
-					status.textContent = "Firebase setup needs attention. Check the project configuration.";
-					saveLabel.textContent = "Not connected";
+					status.textContent = "Firebase-inställningarna behöver ses över. Kontrollera projektinställningarna.";
+					saveLabel.textContent = "Inte ansluten";
 					console.error(error);
 				}
 			}
