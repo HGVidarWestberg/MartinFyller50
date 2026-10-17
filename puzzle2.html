@@ -273,37 +273,9 @@
 			const favicon = document.querySelector("#dynamic-favicon");
 			const notesStatus = document.querySelector("#notes-status");
 			const word = "fotograf";
+			let martinImages = [];
+			let notMartinImages = [];
 			let consecutiveCorrectAnswers = 0;
-
-			const martinImages = [
-				"Screenshot 2026-10-10 154904.png",
-				"Screenshot 2026-10-10 154954.png",
-				"Screenshot 2026-10-10 155015.png",
-				"Screenshot 2026-10-10 155035.png",
-				"Screenshot 2026-10-10 155058.png",
-				"Screenshot 2026-10-10 155110.png",
-				"Screenshot 2026-10-10 155120.png",
-				"Screenshot 2026-10-10 155133.png",
-				"Screenshot 2026-10-10 155142.png",
-				"Screenshot 2026-10-10 155153.png",
-				"Screenshot 2026-10-10 155201.png",
-				"Screenshot 2026-10-10 155217.png",
-				"Screenshot 2026-10-10 155229.png",
-				"Screenshot 2026-10-10 155239.png",
-				"Screenshot 2026-10-10 155300.png",
-				"Screenshot 2026-10-10 155310.png",
-				"Screenshot 2026-10-10 155325.png",
-				"Screenshot 2026-10-10 155338.png"
-			];
-
-			const notMartinImages = [
-				"Screenshot 2026-10-10 155642.png",
-				"Screenshot 2026-10-10 155742.png",
-				"Screenshot 2026-10-10 155814.png",
-				"Screenshot 2026-10-10 155930.png",
-				"Screenshot 2026-10-10 160015.png",
-				"Screenshot 2026-10-10 160059.png"
-			];
 
 			function pickRandom(images) {
 				return images[Math.floor(Math.random() * images.length)];
@@ -355,7 +327,27 @@
 				}));
 			}
 
-			renderImages();
+			async function loadImages() {
+				try {
+					const response = await fetch("image-list.json");
+					if (!response.ok) throw new Error(`Could not load image list: ${response.status}`);
+					const imageList = await response.json();
+					if (!Array.isArray(imageList.martinImages) || !Array.isArray(imageList.notMartinImages)) {
+						throw new Error("Image list is missing one or more image folders");
+					}
+					if (imageList.martinImages.length < 2 || imageList.notMartinImages.length === 0) {
+						throw new Error("Image folders do not contain enough images to play");
+					}
+					martinImages = imageList.martinImages;
+					notMartinImages = imageList.notMartinImages;
+					renderImages();
+				} catch (error) {
+					notesStatus.textContent = "Could not load puzzle images. Check your connection and try again.";
+					console.error(error);
+				}
+			}
+
+			loadImages();
 
 			const noteInput = document.querySelector("#note-input");
 			const saveDot = document.querySelector("#save-dot");

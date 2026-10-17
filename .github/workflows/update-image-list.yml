@@ -1,0 +1,33 @@
+name: Update puzzle image list
+
+on:
+  push:
+    paths:
+      - "MartinsOwnImages/**"
+      - "NotMartinsImages/**"
+      - "scripts/generate-image-list.mjs"
+      - ".github/workflows/update-image-list.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-image-list:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Generate image list
+        run: node scripts/generate-image-list.mjs
+      - name: Commit updated image list
+        run: |
+          if ! git diff --quiet -- image-list.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add image-list.json
+            git commit -m "Update puzzle image list" -m "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
+            git push
+          fi

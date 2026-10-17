@@ -63,7 +63,7 @@
 	<body>
 		<main>
 			<h1>Firebase data setup</h1>
-			<p>This resets photo and puzzle progress: all nine photos are locked, Puzzle 2 is undiscovered, and the crossword is cleared. Your note is preserved.</p>
+			<p>This resets photo and puzzle progress: all nine photos are locked, Puzzle 2 is undiscovered, and the crossword is cleared. The note is set to the reset value.</p>
 			<button id="initialize" type="button">Reset game to start</button>
 			<p id="status" role="status" aria-live="polite">Ready.</p>
 			<ul id="results" aria-label="Reset Firebase values"></ul>
@@ -90,7 +90,8 @@
 			const resultsList = document.querySelector("#results");
 			const values = [
 				{ path: "puzzle2Visited", initialValue: false },
-				{ path: "crossword/rows", initialValue: { 1: "", 2: "", 3: "", 4: "", 5: "" } }
+				{ path: "crossword/rows", initialValue: { 1: "", 2: "", 3: "", 4: "", 5: "" } },
+				{ path: "notes", initialValue: "/CZHOMI2   -,13,5,8,15,1,4,-" }
 			];
 
 			for (let tile = 1; tile <= 9; tile += 1) {
@@ -98,7 +99,7 @@
 			}
 
 			button.addEventListener("click", async () => {
-				if (!window.confirm("Reset all photo unlocks, Puzzle 2 discovery, and crossword entries? Your note will be preserved.")) return;
+				if (!window.confirm("Reset all photo unlocks, Puzzle 2 discovery, crossword entries, and set the note to its reset value?")) return;
 
 				button.disabled = true;
 				status.textContent = "Resetting game state…";
@@ -109,7 +110,7 @@
 						values.map(({ path, initialValue }) => [path, initialValue])
 					));
 
-					status.textContent = "Photo, Puzzle 2, and crossword progress reset. Your note was preserved.";
+					status.textContent = "Photo, Puzzle 2, and crossword progress reset. The note was set to its reset value.";
 					for (const { path, initialValue } of values) {
 						const item = document.createElement("li");
 						item.textContent = `${path}: ${JSON.stringify(initialValue)}`;

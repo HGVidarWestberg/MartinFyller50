@@ -58,6 +58,11 @@ The app assumes these paths are used consistently. Do not rename them unless the
 - When resetting the game, use `firebase-setup.html` and confirm that `tiles/1` through `tiles/9`, `puzzle2Visited`, and `crossword/rows` are reset while `notes` remains intact.
 - Do not introduce bundlers or package managers unless the project truly outgrows its static-site structure.
 
+## Puzzle 2 image folders
+- `image-list.json` supplies the image filenames used by `puzzle2.html`.
+- `.github/workflows/update-image-list.yml` regenerates that list whenever files are pushed to `MartinsOwnImages/` or `NotMartinsImages/`, so new images are included without editing the page.
+- Supported image extensions are AVIF, GIF, JPEG, PNG, and WebP.
+
 ## Relevant references
 - `index.html` — central interactive experience and game state
 - `puzzle2.html` — Puzzle 2 page and image-selection flow
