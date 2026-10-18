@@ -32,6 +32,8 @@ The app uses a shared Firebase Realtime Database with the following keys:
 - `tiles/4` — when true, the crossword page displays the message unlocked by the `älska` answer
 - `tileClues/8` — boolean state for whether tile 8's clue is showing
 - `puzzle2Visited` — boolean that reveals the Puzzle 2 link when true
+- `gameFinished` — boolean that locks the final gallery animation after it starts and preserves its completed state across page loads
+- `finalRevealComplete` — boolean that preserves the completed full-screen gift message across page loads
 - `crossword/rows/<rowNumber>` — string values storing crossword progress
 
 The app assumes these paths are used consistently. Do not rename them unless the corresponding app logic is updated at the same time.
@@ -39,10 +41,11 @@ The app assumes these paths are used consistently. Do not rename them unless the
 ## Game logic and puzzle conventions
 - The gallery answers live in `tileAnswers` inside `index.html` and map to tile numbers using 1-based Firebase paths.
 - The array is zero-based, while the database tile keys are one-based: array index `n` corresponds to `tiles/<n + 1>`.
-- After tile 6 is unlocked, mouse-selecting the page heading changes it to "Martin Fyller 50" for two seconds, then restores "Martin, at 50".
+- Before the final gallery animation, after tile 6 is unlocked, mouse-selecting the page heading changes it to "Martin Fyller 50" for two seconds, then restores "Martin, at 50".
 - Tile 8 starts as a blank tile; double-clicking shows its text clue, and submitting that clue solves the tile, reveals its image, and hides the clue.
 - When changing a gallery answer or tile unlock mapping, verify the position, tile number, and Firebase path all remain consistent.
 - The middle gallery tile is tile 5 and its answer is `eureka`. The link to `lorem.html` appears when tiles 1–4 and 6–9 are unlocked.
+- After all nine photos are revealed, an "avsluta spelet" button appears below the gallery. Clicking it saves `gameFinished` and fuses the photos into a gapless 3×3 arrangement over two seconds while a white overlay reaches full opacity midway and remains over the photos. Just before the fused photos would be revealed, a full-screen white overlay begins fading in over two seconds, followed by the black "Din present finns hos Ida" message fading in. `finalRevealComplete` preserves the completed overlay across page reloads; both final states are cleared by `firebase-setup.html`.
 - `puzzle2.html` is a direct root-level page and should stay reachable at `/puzzle2.html` in a static host.
 - `crossword.html` complements the gallery and is unlocked after the relevant tile state is set in Firebase.
 - `firebase-setup.html` resets progress for the gallery, Puzzle 2, and crossword while preserving notes and unrelated data.
@@ -60,7 +63,7 @@ The app assumes these paths are used consistently. Do not rename them unless the
 - Make the smallest safe fix or feature addition that matches the current design and state model.
 - Avoid assuming a framework, build pipeline, or host-specific routing behavior without checking the actual files.
 - For new puzzle or route additions, create a root-level HTML page and verify the title, file path, and navigation behavior.
-- When resetting the game, use `firebase-setup.html` and confirm that `tiles/1` through `tiles/9`, `puzzle2Visited`, and `crossword/rows` are reset while `notes` remains intact.
+- When resetting the game, use `firebase-setup.html` and confirm that `tiles/1` through `tiles/9`, `gameFinished`, `finalRevealComplete`, `puzzle2Visited`, and `crossword/rows` are reset while `notes` remains intact.
 - Do not introduce bundlers or package managers unless the project truly outgrows its static-site structure.
 
 ## Puzzle 2 image folders

@@ -161,11 +161,22 @@
 				grid-template-columns: repeat(3, minmax(0, 1fr));
 				grid-template-rows: repeat(3, minmax(0, 1fr));
 				gap: 10px;
+				transition: gap 2s ease-in-out;
 				width: min(100%, 980px, calc((100svh - 150px) * 1.1));
 				aspect-ratio: 1.1;
-				align-self: center;
-				justify-self: center;
 			}
+
+			.gallery-stage {
+				display: flex;
+				min-height: 0;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				gap: 12px;
+			}
+
+			.gallery.is-fusing,
+			.gallery.is-fused { gap: 0; }
 
 			.tile {
 				position: relative;
@@ -174,7 +185,11 @@
 				border: 1px solid #e1e1e1;
 				border-radius: 0;
 				background: var(--tile);
+				transition: border-width 2s ease-in-out;
 			}
+
+			.gallery.is-fusing .tile,
+			.gallery.is-fused .tile { border-width: 0; }
 
 			.tile-inner {
 				position: absolute;
@@ -229,6 +244,63 @@
 				height: 100%;
 				object-fit: cover;
 			}
+
+			.tile-fusion-overlay {
+				position: absolute;
+				inset: 0;
+				background: #ffffff;
+				opacity: 0;
+				pointer-events: none;
+			}
+
+			.gallery.is-fusing .tile-fusion-overlay {
+				animation: fusion-whiteout 2s linear forwards;
+			}
+
+			.gallery.is-fused .tile-fusion-overlay { opacity: 1; }
+
+			@keyframes fusion-whiteout {
+				0%, 1% { opacity: 0; }
+				50% { opacity: 1; }
+				100% { opacity: 1; }
+			}
+
+			.final-reveal {
+				position: fixed;
+				z-index: 10;
+				inset: 0;
+				display: grid;
+				place-items: center;
+				background: #ffffff;
+				opacity: 0;
+				visibility: hidden;
+				transition: opacity 2s ease;
+			}
+
+			.final-reveal.is-visible,
+			.final-reveal.is-complete {
+				opacity: 1;
+				visibility: visible;
+			}
+
+			.final-reveal.is-visible { transition: opacity 2s ease; }
+
+			.final-reveal.is-complete { transition: none; }
+
+			.final-message {
+				margin: 24px;
+				color: #000000;
+				font-family: var(--serif);
+				font-size: clamp(30px, 7vw, 64px);
+				text-align: center;
+				opacity: 0;
+				transition: opacity 1.2s ease;
+			}
+
+			.final-reveal.is-message-visible .final-message,
+			.final-reveal.is-complete .final-message { opacity: 1; }
+
+			.final-reveal.is-complete .final-message { transition: none; }
 
 			.status {
 				position: fixed;
@@ -344,6 +416,12 @@
 			@media (prefers-reduced-motion: reduce) {
 				*, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
 				.tile-inner { transition-duration: .75s !important; }
+				.gallery { transition-duration: 2s !important; }
+				.tile { transition-duration: 2s !important; }
+				.gallery.is-fusing .tile-fusion-overlay { animation-duration: 2s !important; }
+				.final-reveal,
+				.final-reveal.is-visible { transition-duration: 2s !important; }
+				.final-message { transition-duration: 1.2s !important; }
 			}
 		</style>
 	</head>
@@ -373,7 +451,10 @@
 				<h1 id="page-title">Martin, at 50</h1>
 			</section>
 
-			<section class="gallery" id="gallery" aria-label="Fotogalleri"></section>
+			<div class="gallery-stage">
+				<section class="gallery" id="gallery" aria-label="Fotogalleri"></section>
+				<button class="submit-button" id="finish-game" type="button" hidden>avsluta spelet</button>
+			</div>
 			<p class="status" id="connection-status" role="status" aria-live="polite"></p>
 		</main>
 
@@ -391,6 +472,9 @@
 				<span class="save-state"><span class="save-dot" id="save-dot"></span><span id="save-label">Ansluter</span></span>
 			</div>
 		</aside>
+		<div class="final-reveal" id="final-reveal" role="status" aria-live="polite" aria-hidden="true">
+			<p class="final-message">Din present finns hos Ida</p>
+		</div>
 
 		<script type="module">
 			import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -418,7 +502,7 @@
 				"https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=900&q=85",
 				"https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=900&q=85"
 			];
-			const tileAnswers = ["fotograf", "Nämen hejsan", "3", "älska", "eureka", "Awww, du hitta mig :(", "puzzle2", "svårgissat ord", "Martin fyller 50"];
+			const tileAnswers = ["fotograf", "Nämen hejsan", "vidar har byggt en fantastisk hemsida", "älska", "eureka", "Awww, du hitta mig :(", "puzzle2", "svårgissat ord", "Martin fyller 50"];
 			const crosswordsTileNumber = tileAnswers.indexOf("fotograf") + 1;
 			const outerTileNumbers = [1, 2, 3, 4, 6, 7, 8, 9];
 
@@ -441,9 +525,21 @@
 			const puzzle2Link = document.querySelector("#puzzle2-link");
 			const crosswordsLink = document.querySelector("#crosswords-link");
 			const loremLink = document.querySelector("#lorem-link");
+			const finishGameButton = document.querySelector("#finish-game");
+			const finalReveal = document.querySelector("#final-reveal");
 			let database;
 			let tileStates = {};
+			let gameFinished = false;
+			let finalRevealComplete = false;
+			let finalRevealStarted = false;
+			let fusionInProgress = false;
 			let tile8ClueShown = false;
+			let galleryFusionPending = false;
+			let galleryFusionPendingTiles = new Set();
+			let galleryFusionTimer;
+			let finalRevealTimer;
+			let finalMessageTimer;
+			let finalRevealSaveTimer;
 			let titleTileUnlocked = false;
 			let titleSelectionStarted = false;
 			let titleRestoreTimer;
@@ -458,10 +554,50 @@
 			}
 
 			function showMarkedTitle() {
+				if (gameFinished) return;
 				clearTimeout(titleRestoreTimer);
 				pageTitle.textContent = "Martin Fyller 50";
 				titleRestoreTimer = setTimeout(() => {
-					pageTitle.textContent = "Martin, at 50";
+					if (!gameFinished) pageTitle.textContent = "Martin, at 50";
+				}, 2000);
+			}
+
+			function showFinalRevealImmediately() {
+				clearTimeout(finalRevealTimer);
+				clearTimeout(finalMessageTimer);
+				clearTimeout(finalRevealSaveTimer);
+				finalRevealStarted = true;
+				finalReveal.classList.remove("is-visible", "is-message-visible");
+				finalReveal.classList.add("is-complete");
+				finalReveal.setAttribute("aria-hidden", "false");
+			}
+
+			function resetFinalReveal() {
+				clearTimeout(finalRevealTimer);
+				clearTimeout(finalMessageTimer);
+				clearTimeout(finalRevealSaveTimer);
+				finalRevealStarted = false;
+				finalReveal.classList.remove("is-visible", "is-message-visible", "is-complete");
+				finalReveal.setAttribute("aria-hidden", "true");
+			}
+
+			function startFinalReveal() {
+				if (finalRevealComplete || finalRevealStarted) return;
+
+				finalRevealStarted = true;
+				finalReveal.classList.add("is-visible");
+				finalReveal.setAttribute("aria-hidden", "false");
+				finalMessageTimer = setTimeout(() => {
+					finalReveal.classList.add("is-message-visible");
+					finalRevealSaveTimer = setTimeout(async () => {
+						try {
+							await set(ref(database, "finalRevealComplete"), true);
+							finalRevealComplete = true;
+						} catch (error) {
+							console.error(error);
+							status.textContent = "Det gick inte att spara att slutmeddelandet har visats. Kontrollera anslutningen.";
+						}
+					}, 1200);
 				}, 2000);
 			}
 
@@ -481,16 +617,54 @@
 				});
 			}
 
+			gallery.addEventListener("transitionend", (event) => {
+				if (!galleryFusionPending || event.propertyName !== "transform"
+					|| !galleryFusionPendingTiles.has(event.target)) return;
+
+				galleryFusionPendingTiles.delete(event.target);
+				if (galleryFusionPendingTiles.size > 0) return;
+
+				galleryFusionPending = false;
+				finishGameButton.hidden = false;
+			});
+
+			finishGameButton.addEventListener("click", async () => {
+				if (gameFinished || fusionInProgress
+					|| !tileAnswers.every((_, index) => tileStates[String(index + 1)] === true)) return;
+
+				fusionInProgress = true;
+				finishGameButton.disabled = true;
+				try {
+					await set(ref(database, "gameFinished"), true);
+					gameFinished = true;
+					finishGameButton.hidden = true;
+					gallery.classList.add("is-fusing");
+					finalRevealTimer = setTimeout(startFinalReveal, 1950);
+					galleryFusionTimer = setTimeout(() => {
+						gallery.classList.remove("is-fusing");
+						gallery.classList.add("is-fused");
+						fusionInProgress = false;
+					}, 2000);
+				} catch (error) {
+					console.error(error);
+					gameFinished = false;
+					fusionInProgress = false;
+					finishGameButton.disabled = false;
+					finishGameButton.hidden = false;
+					status.textContent = "Det gick inte att spara att spelet är avslutat. Kontrollera anslutningen och försök igen.";
+				}
+			});
+
 			document.addEventListener("mousedown", (event) => {
 				titleSelectionStarted = pageTitle.contains(event.target);
 			});
 
 			document.addEventListener("mouseup", () => {
-				const shouldCheckTitleSelection = titleSelectionStarted && titleTileUnlocked;
+				const shouldCheckTitleSelection = titleSelectionStarted && titleTileUnlocked && !gameFinished;
 				titleSelectionStarted = false;
 				if (!shouldCheckTitleSelection) return;
 				requestAnimationFrame(() => {
-					if (titleTileUnlocked && hasTitleSelection()) showMarkedTitle();
+					if (titleTileUnlocked && !gameFinished && hasTitleSelection()) showMarkedTitle();
 				});
 			});
 
@@ -525,7 +699,10 @@
 				}
 				const back = document.createElement("div");
 				back.className = "tile-face tile-back";
-				back.append(image);
+				const fusionOverlay = document.createElement("span");
+				fusionOverlay.className = "tile-fusion-overlay";
+				fusionOverlay.setAttribute("aria-hidden", "true");
+				back.append(image, fusionOverlay);
 				inner.append(front, back);
 				tile.append(inner);
 				gallery.append(tile);
@@ -706,11 +883,67 @@
 						saveLabel.textContent = "Frånkopplad";
 					});
 
+					onValue(ref(database, "gameFinished"), (snapshot) => {
+						gameFinished = snapshot.val() === true;
+						if (!gameFinished) {
+							if (finalRevealStarted && !finalRevealComplete) resetFinalReveal();
+							return;
+						}
+
+						finishGameButton.hidden = true;
+						if (!fusionInProgress) {
+							clearTimeout(galleryFusionTimer);
+							galleryFusionTimer = undefined;
+							gallery.classList.remove("is-fusing");
+							gallery.classList.add("is-fused");
+							if (!finalRevealComplete && !finalRevealStarted) {
+								startFinalReveal();
+							}
+						}
+					}, () => {
+						status.textContent = "Det gick inte att läsa spelets status. Kontrollera databasreglerna.";
+					});
+
+					onValue(ref(database, "finalRevealComplete"), (snapshot) => {
+						const wasComplete = finalRevealComplete;
+						finalRevealComplete = snapshot.val() === true;
+						if (finalRevealComplete) showFinalRevealImmediately();
+						else if (wasComplete) resetFinalReveal();
+					}, () => {
+						status.textContent = "Det gick inte att läsa slutmeddelandets status. Kontrollera databasreglerna.";
+					});
+
 					onValue(ref(database, "tiles"), (snapshot) => {
+						const previousTileStates = tileStates;
 						tileStates = snapshot.val() || {};
+						const allTilesFlipped = tileAnswers.every((_, index) => tileStates[String(index + 1)] === true);
+						if (allTilesFlipped) {
+							if (!gameFinished && !gallery.classList.contains("is-fused") && !gallery.classList.contains("is-fusing")
+								&& !galleryFusionPending && finishGameButton.hidden) {
+								galleryFusionPending = true;
+								galleryFusionPendingTiles = new Set(tileAnswers.flatMap((_, index) => {
+									const tileNumber = String(index + 1);
+									if (previousTileStates[tileNumber] === true || tileStates[tileNumber] !== true) return [];
+									return [gallery.querySelector(`[data-tile="${tileNumber}"] .tile-inner`)];
+								}));
+								if (galleryFusionPendingTiles.size === 0) {
+									galleryFusionPending = false;
+									finishGameButton.hidden = false;
+								}
+							}
+						} else {
+							clearTimeout(galleryFusionTimer);
+							galleryFusionTimer = undefined;
+							galleryFusionPending = false;
+							galleryFusionPendingTiles.clear();
+							if (!gameFinished) {
+								finishGameButton.hidden = true;
+								gallery.classList.remove("is-fusing", "is-fused");
+							}
+						}
 						const answerTileFlipped = tileStates["2"] === true;
 						titleTileUnlocked = tileStates["6"] === true;
-						if (!titleTileUnlocked) {
+						if (!titleTileUnlocked && !gameFinished) {
 							clearTimeout(titleRestoreTimer);
 							pageTitle.textContent = "Martin, at 50";
 						}
